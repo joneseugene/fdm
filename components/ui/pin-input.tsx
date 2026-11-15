@@ -10,6 +10,13 @@ interface PinInputProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   className?: string;
+  /** Focus the first box on mount. */
+  autoFocus?: boolean;
+  /** Show the boxes in an error state. */
+  invalid?: boolean;
+  /** Called once every box is filled (e.g. to submit). */
+  onComplete?: (value: string) => void;
+  "aria-label"?: string;
 }
 
 function PinInput({
@@ -18,17 +25,26 @@ function PinInput({
   onChange,
   disabled,
   className,
+  autoFocus,
+  invalid,
+  onComplete,
+  "aria-label": ariaLabel = "Code",
 }: PinInputProps) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   const chars = value.padEnd(length, " ").slice(0, length).split("");
+
+  const emit = (next: string) => {
+    onChange(next);
+    if (next.length === length) onComplete?.(next);
+  };
 
   const setAt = (index: number, char: string) => {
     const next = chars.slice();
 
     next[index] = char;
 
-    onChange(next.join("").replace(/\s/g, ""));
+    emit(next.join("").replace(/\s/g, ""));
   };
 
   const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
@@ -60,13 +76,15 @@ function PinInput({
       .replace(/\D/g, "")
       .slice(0, length);
 
-    onChange(text);
+    emit(text);
 
     refs.current[Math.min(text.length, length - 1)]?.focus();
   };
 
   return (
     <div
+      role="group"
+      aria-label={ariaLabel}
       className={cn(
         "flex items-center justify-center gap-2 sm:gap-3",
         className,
@@ -79,6 +97,10 @@ function PinInput({
             refs.current[index] = el;
           }}
           inputMode="numeric"
+          autoComplete={index === 0 ? "one-time-code" : "off"}
+          aria-label={`Digit ${index + 1}`}
+          aria-invalid={invalid || undefined}
+          autoFocus={autoFocus && index === 0}
           maxLength={1}
           disabled={disabled}
           value={chars[index] === " " ? "" : chars[index]}
@@ -95,7 +117,10 @@ function PinInput({
           }}
           onKeyDown={(e) => handleKeyDown(index, e)}
           onPaste={handlePaste}
-          className="h-14 w-12 rounded-xl border border-input bg-card text-center text-2xl font-semibold text-foreground shadow-soft transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-16 sm:w-14"
+          className={cn(
+            "h-12 w-10 rounded-xl border border-input bg-card text-center text-2xl font-semibold text-foreground shadow-soft transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-16 sm:w-14",
+            invalid && "border-destructive focus:border-destructive focus:ring-destructive/30",
+          )}
         />
       ))}
     </div>
