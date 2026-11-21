@@ -8,7 +8,9 @@ import { SiteHeader } from "@/components/admin/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
-import { can } from "@/config/access";
+import { can, canEditSection } from "@/config/access";
+import type { SectionKey } from "@/features/content/schemas";
+import { listDraftStatuses } from "@/features/content/server/drafts";
 import { messagesService } from "@/features/messages/server/service";
 import { requireUser } from "@/server/auth/session";
 
@@ -31,14 +33,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
 async function AuthenticatedShell({ children }: { children: ReactNode }) {
   const [user, cookieStore] = await Promise.all([requireUser(), cookies()]);
-  // A badge must never break the page: on failure it just shows nothing.
-  const unread = can(user, "messages.view") ? await messagesService.unreadCount().catch(() => 0) : 0;
+  // Badges must never break the page: on failure they just show nothing.
+  const [unread, drafts] = await Promise.all([
+    can(user, "messages.view") ? messagesService.unreadCount().catch(() => 0) : 0,
+    user.canPublish && can(user, "content.edit") ? listDraftStatuses().catch(() => ({})) : {},
+  ]);
+  const inReview = (Object.entries(drafts) as [SectionKey, string][])
+    .filter(([key, status]) => status === "in_review" && canEditSection(user, key))
+    .map(([key]) => key);
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   return (
     <SessionProvider user={user}>
       <SidebarProvider defaultOpen={sidebarOpen}>
-        <AppSidebar unreadMessages={unread} />
+        <AppSidebar unreadMessages={unread} inReview={inReview} />
         <SidebarInset>
           <SiteHeader />
           <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-6">{children}</div>

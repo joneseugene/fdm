@@ -12,7 +12,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <Image src={logo} alt="" width={56} height={56} className="size-14 rounded-xl" preload />
       </Link>
       <div className="w-full max-w-md">{children}</div>
-      <p className="text-xs text-muted-foreground">Website administration</p>
       <Toaster position="top-center" />
     </main>
   );

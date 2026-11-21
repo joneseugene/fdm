@@ -109,6 +109,32 @@ export function inviteEmail(p: {
   });
 }
 
+const sectionUrl = (key: string) => new URL(`/admin/content/${key}`, serverEnv.APP_URL).toString();
+
+export function reviewRequestEmail(p: { section: string; author: string; key: string }) {
+  return render({
+    subject: `Review requested: ${p.section}`,
+    preview: `${p.author} sent changes to ${p.section} for review.`,
+    heading: "Changes waiting for review",
+    paragraphs: [
+      `${p.author} has sent changes to the ${p.section} section for review.`,
+      "Open it to check the changes, then publish them or send them back with a note.",
+    ],
+    action: { label: `Review ${p.section}`, url: sectionUrl(p.key) },
+  });
+}
+
+export function changesRequestedEmail(p: { firstName: string; section: string; reviewer: string; note: string; key: string }) {
+  return render({
+    subject: `Changes requested: ${p.section}`,
+    preview: p.note.slice(0, 120),
+    heading: "Your changes were sent back",
+    paragraphs: [`Hi ${p.firstName},`, `${p.reviewer} reviewed your changes to ${p.section} and asked for a few edits:`, p.note],
+    action: { label: `Open ${p.section}`, url: sectionUrl(p.key) },
+    note: "Your draft is saved. Make the changes, then send it for review again.",
+  });
+}
+
 export function testEmail() {
   return render({
     subject: "Test email from the FDMG website",

@@ -118,6 +118,25 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* Folding sidebar groups (Radix measures the content height). */
+@theme {
+  --animate-collapsible-down: collapsible-down 180ms ease-out;
+  --animate-collapsible-up: collapsible-up 180ms ease-out;
+
+  @keyframes collapsible-down {
+    from { height: 0; opacity: 0; }
+    to { height: var(--radix-collapsible-content-height); opacity: 1; }
+  }
+  @keyframes collapsible-up {
+    from { height: var(--radix-collapsible-content-height); opacity: 1; }
+    to { height: 0; opacity: 0; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-radix-collapsible-content] { animation: none !important; }
+}
+
 /* Slim, unobtrusive scrollbar: thin rounded thumb, invisible track, darker on hover. */
 @utility scrollbar-thin {
   scrollbar-width: thin;

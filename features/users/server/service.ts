@@ -1,13 +1,13 @@
 import "server-only";
 
-import type { CurrentUser, Role, UserStatus } from "@/config/access";
+import { canManageRole, ROLE_LABELS, type CurrentUser, type Role, type UserStatus } from "@/config/access";
 import { sendInvitation } from "@/server/auth/invitations";
 import { normalizeEmail } from "@/server/auth/native-auth";
 import { authStore } from "@/server/auth/store";
 import { AppError } from "@/server/core/errors";
 import { logger } from "@/server/core/logger";
 import { check, db, one, rows } from "@/server/db";
-import type { AdminUser } from "../schemas";
+import { storedCanPublish, storedSections, type AdminUser } from "../schemas";
 
 type Row = {
   id: string;
@@ -17,12 +17,15 @@ type Row = {
   other_name: string | null;
   church_role: string | null;
   role: Role;
+  content_sections: string[] | null;
+  can_publish: boolean;
   status: UserStatus;
   last_login_at: string | null;
   created_at: string;
 };
 
-const COLUMNS = "id, email, first_name, last_name, other_name, church_role, role, status, last_login_at, created_at";
+const COLUMNS =
+  "id, email, first_name, last_name, other_name, church_role, role, content_sections, can_publish, status, last_login_at, created_at";
 
 const toUser = (r: Row): AdminUser => ({
   id: r.id,
@@ -32,6 +35,8 @@ const toUser = (r: Row): AdminUser => ({
   otherName: r.other_name,
   churchRole: r.church_role,
   role: r.role,
+  contentSections: r.role === "content_manager" ? r.content_sections : null,
+  canPublish: r.role !== "content_manager" || r.can_publish,
   status: r.status,
   lastLoginAt: r.last_login_at,
   createdAt: r.created_at,
@@ -62,6 +67,24 @@ function assertNotSelf(actor: CurrentUser, id: string, what: string) {
   if (actor.id === id) throw AppError.forbidden(`You can't ${what} your own account`);
 }
 
+/** Church Admins may only manage Content Managers; Super Admins manage everyone. */
+function assertCanManage(actor: CurrentUser, role: Role) {
+  if (!canManageRole(actor, role)) {
+    throw AppError.forbidden(`You can't manage ${ROLE_LABELS[role]} accounts`);
+  }
+}
+
+type ProfileInput = {
+  firstName: string;
+  lastName: string;
+  otherName: string;
+  churchRole: string;
+  role: Role;
+  contentAccess: "all" | "some";
+  contentSections: string[];
+  canPublish: boolean;
+};
+
 export const usersService = {
   async list(): Promise<AdminUser[]> {
     return rows(
@@ -75,14 +98,8 @@ export const usersService = {
   },
 
   /** Add someone; they get an emailed link to choose a password and activate their account. */
-  async invite(input: {
-    firstName: string;
-    lastName: string;
-    otherName: string;
-    email: string;
-    role: Role;
-    churchRole: string;
-  }) {
+  async invite(actor: CurrentUser, input: ProfileInput & { email: string }) {
+    assertCanManage(actor, input.role);
     const email = normalizeEmail(input.email);
     if (await authStore.findUserByEmail(email)) {
       throw AppError.validation("This email already has an account", { email: ["Already added"] });
@@ -97,6 +114,8 @@ export const usersService = {
           other_name: input.otherName || null,
           church_role: input.churchRole,
           role: input.role,
+          content_sections: storedSections(input),
+          can_publish: storedCanPublish(input),
           status: "invited",
         })
         .select("id")
@@ -116,17 +135,18 @@ export const usersService = {
     return { id: row.id, emailSent };
   },
 
-  async resendInvite(id: string) {
+  async resendInvite(actor: CurrentUser, id: string) {
+    const user = await find(id);
+    assertCanManage(actor, user.role);
     const record = await authStore.findUserById(id);
     if (!record) throw AppError.notFound("User not found");
     await sendInvitation(record);
   },
 
-  async update(
-    actor: CurrentUser,
-    input: { id: string; firstName: string; lastName: string; otherName: string; churchRole: string; role: Role },
-  ) {
+  async update(actor: CurrentUser, input: ProfileInput & { id: string }) {
     const user = await find(input.id);
+    assertCanManage(actor, user.role); // who they are now…
+    assertCanManage(actor, input.role); // …and what they'd become
     if (user.role === "super_admin" && input.role !== "super_admin") {
       assertNotSelf(actor, input.id, "remove Super Admin rights from");
       await assertOtherSuperAdmin(input.id);
@@ -140,6 +160,8 @@ export const usersService = {
           other_name: input.otherName || null,
           church_role: input.churchRole || null,
           role: input.role,
+          content_sections: storedSections(input),
+          can_publish: storedCanPublish(input),
         })
         .eq("id", input.id),
     );
@@ -148,6 +170,7 @@ export const usersService = {
   async setBlocked(actor: CurrentUser, id: string, blocked: boolean) {
     assertNotSelf(actor, id, "block");
     const user = await find(id);
+    assertCanManage(actor, user.role);
     if (blocked && user.role === "super_admin") await assertOtherSuperAdmin(id);
     // Unblocking someone who never joined puts them back to "invited".
     const record = await authStore.findUserById(id);
@@ -159,6 +182,7 @@ export const usersService = {
   async remove(actor: CurrentUser, id: string) {
     assertNotSelf(actor, id, "remove");
     const user = await find(id);
+    assertCanManage(actor, user.role);
     if (user.role === "super_admin") await assertOtherSuperAdmin(id);
     check(await db().from("users").update({ deleted_at: new Date().toISOString() }).eq("id", id));
     await authStore.revokeUserSessions(id);

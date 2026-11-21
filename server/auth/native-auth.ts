@@ -47,6 +47,8 @@ function toCurrentUser(user: AuthUserRecord): CurrentUser {
     fullName: `${user.firstName} ${user.lastName}`.trim(),
     role: user.role,
     permissions: ROLE_PERMISSIONS[user.role] ?? [],
+    contentSections: user.role === "content_manager" ? user.contentSections : null,
+    canPublish: user.role !== "content_manager" || user.canPublish,
   };
 }
 

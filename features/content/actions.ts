@@ -3,28 +3,85 @@
 import { after } from "next/server";
 import { z } from "zod";
 
+import { assertPublish, assertSection } from "@/server/auth/session";
 import { defineAction } from "@/server/core/action";
 import { logger } from "@/server/core/logger";
 import { serverEnv } from "@/server/env";
-import { SECTION_KEYS, type ImageAsset } from "./schemas";
+import { reviewNoteSchema, SECTION_KEYS, type ImageAsset } from "./schemas";
+import { deleteDraft, returnDraft, saveDraft } from "./server/drafts";
 import { resetSection, saveSection } from "./server/service";
 
-const sectionKey = z.enum(SECTION_KEYS as [string, ...string[]]).transform((k) => k as (typeof SECTION_KEYS)[number]);
+/**
+ * Editing a section:
+ *   save draft       anyone with access — nothing changes on the website
+ *   send for review  anyone with access — publishers are emailed
+ *   publish          Super/Church Admins, and Content Managers allowed to publish
+ *   send back        publishers, on a draft that's in review
+ */
 
-export const saveSectionAction = defineAction({
+const sectionKey = z.enum(SECTION_KEYS as [string, ...string[]]).transform((k) => k as (typeof SECTION_KEYS)[number]);
+const sectionInput = z.object({ key: sectionKey, data: z.unknown() });
+
+export const saveDraftAction = defineAction({
   permissions: ["content.edit"],
-  input: z.object({ key: sectionKey, data: z.unknown() }),
-  handler: async ({ key, data }, { user }) => {
+  input: sectionInput,
+  handler: async ({ key, data }) => {
+    const user = await assertSection(key);
+    await saveDraft(key, data, user.id, false);
+  },
+  refresh: true,
+});
+
+export const submitForReviewAction = defineAction({
+  permissions: ["content.edit"],
+  input: sectionInput,
+  handler: async ({ key, data }) => {
+    const user = await assertSection(key);
+    await saveDraft(key, data, user.id, true);
+  },
+  refresh: true,
+});
+
+export const publishSectionAction = defineAction({
+  permissions: ["content.edit"],
+  input: sectionInput,
+  handler: async ({ key, data }) => {
+    const user = await assertPublish(key);
     const saved = await saveSection(key, data, user.id);
+    await deleteDraft(key);
     if (key === "hero") after(() => warmImage((saved as { image: ImageAsset }).image.src));
   },
   refresh: true,
 });
 
+export const discardDraftAction = defineAction({
+  permissions: ["content.edit"],
+  input: z.object({ key: sectionKey }),
+  handler: async ({ key }) => {
+    await assertSection(key);
+    await deleteDraft(key);
+  },
+  refresh: true,
+});
+
+export const returnDraftAction = defineAction({
+  permissions: ["content.edit"],
+  input: z.object({ key: sectionKey, note: reviewNoteSchema }),
+  handler: async ({ key, note }) => {
+    const user = await assertPublish(key);
+    await returnDraft(key, note, user.id);
+  },
+  refresh: true,
+});
+
+/** Back to the website's original content. Goes live, so publishers only. */
 export const resetSectionAction = defineAction({
   permissions: ["content.edit"],
   input: z.object({ key: sectionKey }),
-  handler: async ({ key }) => resetSection(key),
+  handler: async ({ key }) => {
+    await assertPublish(key);
+    await resetSection(key);
+  },
   refresh: true,
 });
 

@@ -98,7 +98,7 @@ function collectImages(value: unknown, out: ImageAsset[] = []): ImageAsset[] {
 }
 
 /** Images must be our own: a bundled /public file or one uploaded to our bucket. */
-function assertOwnImages(data: unknown) {
+export function assertOwnImages(data: unknown) {
   const prefix = STORAGE_PREFIX();
   for (const image of collectImages(data)) {
     const local = image.src.startsWith("/") && !image.src.startsWith("//");
@@ -123,8 +123,9 @@ export async function saveSection(key: SectionKey, raw: unknown, userId: string)
   return parsed.data;
 }
 
-/** Put a section back to its original content. */
+/** Put a section back to its original content (and drop any draft). */
 export async function resetSection(key: SectionKey) {
   check(await db().from("site_sections").delete().eq("key", key));
+  check(await db().from("section_drafts").delete().eq("key", key));
   updateTag(SITE_CONTENT_TAG);
 }

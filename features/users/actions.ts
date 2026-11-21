@@ -11,7 +11,7 @@ const idInput = z.object({ id: z.uuid() });
 export const inviteUserAction = defineAction({
   permissions: ["users.manage"],
   input: inviteUserSchema,
-  handler: (input) => usersService.invite(input),
+  handler: (input, { user }) => usersService.invite(user, input),
   refresh: true,
 });
 
@@ -25,7 +25,7 @@ export const updateUserAction = defineAction({
 export const resendInviteAction = defineAction({
   permissions: ["users.manage"],
   input: idInput,
-  handler: ({ id }) => usersService.resendInvite(id),
+  handler: ({ id }, { user }) => usersService.resendInvite(user, id),
 });
 
 export const setUserBlockedAction = defineAction({

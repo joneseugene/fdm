@@ -7,9 +7,12 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
 import { SectionEditor } from "@/features/content/components/section-editor";
-import { isSectionKey, SECTION_META } from "@/features/content/schemas";
+import type { FieldValues } from "react-hook-form";
+
+import { isSectionKey, SECTION_META, SECTION_SCHEMAS } from "@/features/content/schemas";
+import { getDraft } from "@/features/content/server/drafts";
 import { getSectionForEdit } from "@/features/content/server/service";
-import { requirePermission } from "@/server/auth/session";
+import { requirePermission, requireSection } from "@/server/auth/session";
 
 export async function generateMetadata({ params }: PageProps<"/admin/content/[section]">): Promise<Metadata> {
   const { section } = await params;
@@ -20,9 +23,12 @@ export default async function SectionPage({ params }: PageProps<"/admin/content/
   await requirePermission("content.edit");
   const { section } = await params;
   if (!isSectionKey(section)) notFound();
+  await requireSection(section);
 
   const meta = SECTION_META[section];
-  const { data, updatedAt } = await getSectionForEdit(section);
+  const [{ data, updatedAt }, draft] = await Promise.all([getSectionForEdit(section), getDraft(section)]);
+  // A draft that no longer fits the form (e.g. after an update) is shown as the live version instead.
+  const draftData = draft && SECTION_SCHEMAS[section].safeParse(draft.data).success ? draft.data : null;
 
   return (
     <>
@@ -39,12 +45,13 @@ export default async function SectionPage({ params }: PageProps<"/admin/content/
           </Button>
         }
       />
-      {/* Keyed so a save/restore (or switching sections) starts from what's stored. */}
+      {/* Keyed so a save/publish/restore (or switching sections) starts from what's stored. */}
       <SectionEditor
-        key={`${section}:${updatedAt}`}
+        key={`${section}:${updatedAt}:${draft?.info.updatedAt ?? "live"}:${draft?.info.status ?? ""}`}
         sectionKey={section}
-        initial={data}
+        initial={(draftData ?? data) as FieldValues}
         isCustomised={updatedAt !== null}
+        draft={draftData ? draft!.info : null}
       />
     </>
   );

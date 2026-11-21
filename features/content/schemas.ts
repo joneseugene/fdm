@@ -238,3 +238,21 @@ export const ADMIN_SECTION_ORDER: SectionKey[] = [
   "socials",
   "footer",
 ];
+
+// ---------- Drafts and review ----------
+
+/** draft: saved, not live. in_review: sent to a publisher. */
+export type DraftStatus = "draft" | "in_review";
+
+/** What the editor shows about a section's unpublished draft. */
+export type SectionDraftInfo = {
+  status: DraftStatus;
+  updatedAt: string;
+  updatedByName: string | null;
+  submittedAt: string | null;
+  submittedByName: string | null;
+  /** The reviewer's reason when they sent it back. */
+  reviewNote: string | null;
+};
+
+export const reviewNoteSchema = z.string().trim().min(3, "Say briefly what to change").max(1000);

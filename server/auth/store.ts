@@ -13,6 +13,10 @@ export type AuthUserRecord = {
   /** Their duty in the church (Pastor, Secretary, …). */
   churchRole: string | null;
   role: Role;
+  /** Content Managers: sections they may edit (null = all). */
+  contentSections: string[] | null;
+  /** Content Managers: may publish without review. */
+  canPublish: boolean;
   status: UserStatus;
   passwordHash: string | null;
   failedLoginAttempts: number;
@@ -40,7 +44,7 @@ export type SessionRecord = {
 };
 
 const USER_COLUMNS =
-  "id, email, first_name, last_name, church_role, role, status, password_hash, failed_login_attempts, locked_until";
+  "id, email, first_name, last_name, church_role, role, content_sections, can_publish, status, password_hash, failed_login_attempts, locked_until";
 const SESSION_COLUMNS = "id, user_id, token_hash, expires_at, revoked_at, rotated_at, persistent";
 
 type UserRow = {
@@ -50,6 +54,8 @@ type UserRow = {
   last_name: string;
   church_role: string | null;
   role: Role;
+  content_sections: string[] | null;
+  can_publish: boolean;
   status: UserStatus;
   password_hash: string | null;
   failed_login_attempts: number;
@@ -76,6 +82,8 @@ const toUser = (r: UserRow): AuthUserRecord => ({
   lastName: r.last_name,
   churchRole: r.church_role,
   role: r.role,
+  contentSections: r.content_sections,
+  canPublish: r.can_publish,
   status: r.status,
   passwordHash: r.password_hash,
   failedLoginAttempts: r.failed_login_attempts,
