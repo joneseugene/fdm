@@ -1,163 +1,133 @@
 import "server-only";
-import { randomInt } from "node:crypto";
-import { jwtVerify, SignJWT } from "jose";
 
 import { ROLE_LABELS } from "@/config/access";
 import { routes } from "@/config/routes";
 import { AppError } from "@/server/core/errors";
 import { check, db, rows } from "@/server/db";
 import { sendEmail } from "@/server/email";
-import { inviteCodeEmail } from "@/server/email/templates";
-import { requireEnv, serverEnv } from "@/server/env";
-import { signInAs, normalizeEmail } from "./native-auth";
+import { inviteEmail } from "@/server/email/templates";
+import { serverEnv } from "@/server/env";
+import { signInAs } from "./native-auth";
 import { hashPassword } from "./password";
 import { authStore, type AuthUserRecord } from "./store";
-import { hashToken } from "./tokens";
+import { generateOpaqueToken, hashToken } from "./tokens";
 
 /**
- * Invitations: a Super Admin adds someone by email; they get a 6-digit code,
- * confirm it on /join, then set their name, church role and password.
+ * Invitations: a Super Admin adds someone (name, access, duty). They get an
+ * emailed one-time link to /join, where they choose a password; that
+ * activates the account and signs them in.
+ *
+ * Links are stored hashed in `invite_codes.code_hash`. Opening the link only
+ * reads it; it is used up when the password is set, so email scanners that
+ * pre-open links can't burn it.
  */
 
-const CODE_TTL_MS = 48 * 60 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
-/** Time to fill in the profile after confirming the code. */
-const TICKET_TTL_S = 30 * 60;
+const LINK_TTL_MS = 72 * 60 * 60 * 1000;
 
-const codeHash = (userId: string, code: string) => hashToken(`invite:${userId}:${code}`);
+const linkHash = (token: string) => hashToken(`invite-link:${token}`);
 
-/** Email a new code (any earlier code stops working). */
-export async function sendInviteCode(user: AuthUserRecord) {
-  if (user.status !== "invited") throw AppError.conflict("This person has already joined");
+/** Email a new link (any earlier link stops working). */
+export async function sendInvitation(user: AuthUserRecord) {
+  if (user.status !== "invited") throw AppError.conflict("This person has already set up their account");
 
-  // Retire earlier codes, so only the newest email works.
-  check(
-    await db()
-      .from("invite_codes")
-      .update({ used_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .is("used_at", null),
-  );
+  const now = new Date().toISOString();
+  check(await db().from("invite_codes").update({ used_at: now }).eq("user_id", user.id).is("used_at", null));
 
-  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const token = generateOpaqueToken();
   check(
     await db().from("invite_codes").insert({
       user_id: user.id,
-      code_hash: codeHash(user.id, code),
-      expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
+      code_hash: linkHash(token),
+      expires_at: new Date(Date.now() + LINK_TTL_MS).toISOString(),
     }),
   );
 
   const url = new URL(routes.join, serverEnv.APP_URL);
-  url.searchParams.set("email", user.email);
+  url.searchParams.set("token", token);
   try {
     await sendEmail({
       to: user.email,
-      ...inviteCodeEmail({
-        code,
-        email: user.email,
+      ...inviteEmail({
+        firstName: user.firstName || "there",
         url: url.toString(),
         roleLabel: ROLE_LABELS[user.role],
-        hoursValid: CODE_TTL_MS / 3_600_000,
+        duty: user.churchRole,
+        hoursValid: LINK_TTL_MS / 3_600_000,
       }),
     });
   } catch (error) {
     throw new AppError(
       "INTEGRATION",
-      "The invitation email couldn't be sent. Check Email settings, then use “Resend code”.",
+      "The invitation email couldn't be sent. Check Email settings, then use “Resend invite link”.",
       { cause: error },
     );
   }
 }
 
-const WRONG_CODE = () =>
-  AppError.validation("That code isn't right. Check the email and try again.", { code: ["Incorrect code"] });
+type LinkRow = { id: string; user_id: string };
 
-/** Check the code; returns a short-lived ticket for the profile step. */
-export async function verifyInviteCode(email: string, code: string): Promise<string> {
-  const user = await authStore.findUserByEmail(normalizeEmail(email));
-  // Same answer for unknown emails and wrong codes.
-  if (!user || user.status !== "invited") throw WRONG_CODE();
-
-  type CodeRow = { id: string; code_hash: string; expires_at: string; attempts: number };
-  const [latest] = rows(
+async function findLink(token: string): Promise<LinkRow | null> {
+  if (!token) return null;
+  const [row] = rows(
     await db()
       .from("invite_codes")
-      .select("id, code_hash, expires_at, attempts")
-      .eq("user_id", user.id)
+      .select("id, user_id")
+      .eq("code_hash", linkHash(token))
       .is("used_at", null)
-      .order("created_at", { ascending: false })
+      .gt("expires_at", new Date().toISOString())
       .limit(1)
-      .returns<CodeRow[]>(),
+      .returns<LinkRow[]>(),
   );
-  if (!latest) throw WRONG_CODE();
-  if (new Date(latest.expires_at).getTime() <= Date.now()) {
-    throw AppError.validation("This code has expired. Ask your Super Admin to resend it.", { code: ["Expired"] });
-  }
-  if (latest.attempts >= MAX_ATTEMPTS) {
-    throw AppError.validation("Too many wrong tries. Ask your Super Admin to resend the code.", {
-      code: ["Too many tries"],
-    });
-  }
-  if (latest.code_hash !== codeHash(user.id, code)) {
-    check(await db().from("invite_codes").update({ attempts: latest.attempts + 1 }).eq("id", latest.id));
-    throw WRONG_CODE();
-  }
-
-  return new SignJWT({ purpose: "invite" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setSubject(user.id)
-    .setAudience("invite")
-    .setIssuedAt()
-    .setExpirationTime(`${TICKET_TTL_S}s`)
-    .sign(ticketKey());
+  return row ?? null;
 }
 
-const ticketKey = () => new TextEncoder().encode(requireEnv("AUTH_SECRET", "invitations"));
-
-async function readTicket(ticket: string): Promise<string> {
-  try {
-    const { payload } = await jwtVerify(ticket, ticketKey(), { algorithms: ["HS256"], audience: "invite" });
-    if (payload.purpose !== "invite" || typeof payload.sub !== "string") throw new Error("bad ticket");
-    return payload.sub;
-  } catch {
-    throw AppError.validation("This step has expired. Enter your code again.");
-  }
-}
-
-/** Who a ticket belongs to (to show their email on the profile step). */
-export async function invitedUserFromTicket(ticket: string) {
-  const user = await authStore.findUserById(await readTicket(ticket));
+/** The invited person a link belongs to, or null if it's invalid, used or expired. */
+export async function invitationFromToken(token: string): Promise<AuthUserRecord | null> {
+  const link = await findLink(token);
+  if (!link) return null;
+  const user = await authStore.findUserById(link.user_id);
   return user?.status === "invited" ? user : null;
 }
 
-/** Final step: save their profile and password, activate, and sign them in. */
-export async function completeInvitation(
-  ticket: string,
-  input: { firstName: string; lastName: string; otherName: string; churchRole: string; password: string },
-) {
-  const user = await invitedUserFromTicket(ticket);
-  if (!user) throw AppError.validation("This invitation is no longer valid. Ask your Super Admin for a new one.");
+const INVALID_LINK = () =>
+  AppError.validation("This link is invalid or has expired. Ask your Super Admin to send a new one.");
 
+/** Set their password, activate the account and sign them in. */
+export async function acceptInvitation(token: string, password: string) {
+  const user = await invitationFromToken(token);
+  if (!user) throw INVALID_LINK();
+
+  // Use the link up first (atomically), so it can't be accepted twice.
   const now = new Date().toISOString();
-  check(
+  const consumed = rows(
+    await db()
+      .from("invite_codes")
+      .update({ used_at: now })
+      .eq("code_hash", linkHash(token))
+      .is("used_at", null)
+      .gt("expires_at", now)
+      .select("id")
+      .returns<Array<{ id: string }>>(),
+  );
+  if (!consumed.length) throw INVALID_LINK();
+
+  const activated = rows(
     await db()
       .from("users")
       .update({
-        first_name: input.firstName,
-        last_name: input.lastName,
-        other_name: input.otherName || null,
-        church_role: input.churchRole,
-        password_hash: await hashPassword(input.password),
+        password_hash: await hashPassword(password),
         password_changed_at: now,
         last_login_at: now,
+        failed_login_attempts: 0,
+        locked_until: null,
         status: "active",
       })
       .eq("id", user.id)
-      .eq("status", "invited"), // can't be completed twice
+      .eq("status", "invited")
+      .select("id")
+      .returns<Array<{ id: string }>>(),
   );
-  // The code is used up.
-  check(await db().from("invite_codes").update({ used_at: now }).eq("user_id", user.id).is("used_at", null));
+  if (!activated.length) throw INVALID_LINK();
 
   await signInAs({ ...user, status: "active" }, true);
 }

@@ -2,10 +2,31 @@ import { z } from "zod";
 
 import { ROLES, type Role, type UserStatus } from "@/config/access";
 
-/** The Super Admin only gives an email and a role; the person fills in the rest when they join. */
+/** Suggestions for the "Duty" field (free text, so any duty can be typed). */
+export const DUTY_SUGGESTIONS = [
+  "Pastor",
+  "Assistant Pastor",
+  "Elder",
+  "Deacon",
+  "Secretary",
+  "Treasurer",
+  "Media Lead",
+  "Worship Leader",
+  "Youth Leader",
+  "Women's Ministry Lead",
+  "Men's Ministry Lead",
+  "Children's Ministry Lead",
+  "Usher",
+] as const;
+
+/** The Super Admin fills in who they are; the person only chooses a password when they join. */
 export const inviteUserSchema = z.object({
+  firstName: z.string().trim().min(1, "Required").max(100),
+  lastName: z.string().trim().min(1, "Required").max(100),
+  otherName: z.string().trim().max(100),
   email: z.email("Enter a valid email address").max(200),
   role: z.enum(ROLES),
+  churchRole: z.string().trim().min(2, "Enter their duty, e.g. Pastor or Secretary").max(100),
 });
 export type InviteUserValues = z.input<typeof inviteUserSchema>;
 

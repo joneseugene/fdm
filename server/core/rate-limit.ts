@@ -15,8 +15,8 @@ export const RATE_LIMITS = {
   signIn: { limit: 20, windowSeconds: 15 * 60 },
   passwordReset: { limit: 5, windowSeconds: 15 * 60 },
   contact: { limit: 5, windowSeconds: 60 * 60 },
-  /** Invitation code checks (each code also dies after 5 wrong tries). */
-  inviteCode: { limit: 20, windowSeconds: 15 * 60 },
+  /** Setting a password from an invitation link. */
+  acceptInvite: { limit: 20, windowSeconds: 15 * 60 },
 } as const;
 
 async function clientIp() {

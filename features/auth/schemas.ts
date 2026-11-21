@@ -33,21 +33,10 @@ export const resetPasswordSchema = z
   });
 export type ResetPasswordValues = z.input<typeof resetPasswordSchema>;
 
-export const INVITE_CODE_LENGTH = 6;
-
-/** Join step 1: the code from the invitation email. */
-export const inviteCodeSchema = z.object({
-  email: z.email("Enter the email the invitation was sent to"),
-  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
-});
-
-/** Join step 2: their profile and password. */
-export const joinProfileSchema = z
+/** Accepting an invitation: the link's token and their new password. */
+export const acceptInviteSchema = z
   .object({
-    firstName: z.string().trim().min(1, "Required").max(100),
-    lastName: z.string().trim().min(1, "Required").max(100),
-    otherName: z.string().trim().max(100),
-    churchRole: z.string().trim().min(2, "Required, e.g. Pastor or Secretary").max(100),
+    token: z.string().min(1, "Missing invitation link").max(200),
     password: newPasswordSchema,
     confirmPassword: z.string(),
   })
@@ -55,7 +44,7 @@ export const joinProfileSchema = z
     message: "Passwords don't match",
     path: ["confirmPassword"],
   });
-export type JoinProfileValues = z.input<typeof joinProfileSchema>;
+export type AcceptInviteValues = z.input<typeof acceptInviteSchema>;
 
 export const changePasswordSchema = z
   .object({

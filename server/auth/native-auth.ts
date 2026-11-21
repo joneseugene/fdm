@@ -201,10 +201,10 @@ export const auth = {
     const user = await store.findUserByEmail(normalizeEmail(email));
     if (!user || user.status === "blocked") return; // same response either way
     // Failures are logged, not reported: an error would reveal the account exists.
-    // Someone who never accepted their invitation gets a fresh invitation code instead.
+    // Someone who never accepted their invitation gets a fresh invitation link instead.
     const send =
       user.status === "invited"
-        ? import("./invitations").then(({ sendInviteCode }) => sendInviteCode(user))
+        ? import("./invitations").then(({ sendInvitation }) => sendInvitation(user))
         : sendResetEmail(user);
     await send.catch((error) => logger.error("Reset email failed", { message: (error as Error)?.message }));
   },

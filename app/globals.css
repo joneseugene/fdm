@@ -118,6 +118,31 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* Slim, unobtrusive scrollbar: thin rounded thumb, invisible track, darker on hover. */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, currentColor 18%, transparent) transparent;
+  scrollbar-gutter: stable;
+
+  &:hover {
+    scrollbar-color: color-mix(in oklch, currentColor 32%, transparent) transparent;
+  }
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, currentColor 18%, transparent);
+    border-radius: 9999px;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, currentColor 32%, transparent);
+  }
+}
+
 @layer base {
   * {
     border-color: var(--color-border);

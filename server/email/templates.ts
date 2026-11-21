@@ -88,18 +88,24 @@ export function resetPasswordEmail(p: { firstName: string; url: string; minutesV
   });
 }
 
-export function inviteCodeEmail(p: { code: string; email: string; url: string; roleLabel: string; hoursValid: number }) {
+export function inviteEmail(p: {
+  firstName: string;
+  url: string;
+  roleLabel: string;
+  duty: string | null;
+  hoursValid: number;
+}) {
   return render({
-    subject: `${p.code} is your code to join the FDMG website admin`,
-    preview: "Confirm your email to set up your account.",
+    subject: "Set up your FDMG website admin account",
+    preview: "Choose a password to activate your account.",
     heading: "You've been invited",
     paragraphs: [
-      `You've been added as a ${p.roleLabel} for the ${NAME} website (${p.email}).`,
-      "Open the page below and enter this code to confirm your email, then set up your name and password.",
+      `Hi ${p.firstName},`,
+      `You've been added to the ${NAME} website admin as a ${p.roleLabel}${p.duty ? ` (${p.duty})` : ""}.`,
+      "Click the button below to choose your password and activate your account.",
     ],
-    code: p.code,
-    action: { label: "Confirm my email", url: p.url },
-    note: `The code expires in ${p.hoursValid} hours. Never share it. If you didn't expect this, ignore the email.`,
+    action: { label: "Set up my account", url: p.url },
+    note: `This link is just for you. It works once and expires in ${p.hoursValid} hours. If you didn't expect this, ignore the email.`,
   });
 }
 

@@ -10,6 +10,8 @@ export type AuthUserRecord = {
   email: string;
   firstName: string;
   lastName: string;
+  /** Their duty in the church (Pastor, Secretary, …). */
+  churchRole: string | null;
   role: Role;
   status: UserStatus;
   passwordHash: string | null;
@@ -38,7 +40,7 @@ export type SessionRecord = {
 };
 
 const USER_COLUMNS =
-  "id, email, first_name, last_name, role, status, password_hash, failed_login_attempts, locked_until";
+  "id, email, first_name, last_name, church_role, role, status, password_hash, failed_login_attempts, locked_until";
 const SESSION_COLUMNS = "id, user_id, token_hash, expires_at, revoked_at, rotated_at, persistent";
 
 type UserRow = {
@@ -46,6 +48,7 @@ type UserRow = {
   email: string;
   first_name: string;
   last_name: string;
+  church_role: string | null;
   role: Role;
   status: UserStatus;
   password_hash: string | null;
@@ -71,6 +74,7 @@ const toUser = (r: UserRow): AuthUserRecord => ({
   email: r.email,
   firstName: r.first_name,
   lastName: r.last_name,
+  churchRole: r.church_role,
   role: r.role,
   status: r.status,
   passwordHash: r.password_hash,

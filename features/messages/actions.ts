@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { defineAction } from "@/server/core/action";
 import { enforceRateLimit } from "@/server/core/rate-limit";
-import { contactMessageSchema } from "./schemas";
+import { alertRecipientSchema, contactMessageSchema } from "./schemas";
+import { addAlertRecipient, removeAlertRecipient } from "./server/alerts";
 import { messagesService } from "./server/service";
 
 /** The public contact form. */
@@ -32,5 +33,19 @@ export const deleteMessageAction = defineAction({
   permissions: ["messages.view"],
   input: idInput,
   handler: ({ id }) => messagesService.remove(id),
+  refresh: true,
+});
+
+export const addAlertRecipientAction = defineAction({
+  permissions: ["messages.view"],
+  input: alertRecipientSchema,
+  handler: ({ email }, { user }) => addAlertRecipient(email, user.id),
+  refresh: true,
+});
+
+export const removeAlertRecipientAction = defineAction({
+  permissions: ["messages.view"],
+  input: alertRecipientSchema,
+  handler: ({ email }, { user }) => removeAlertRecipient(email, user.id),
   refresh: true,
 });

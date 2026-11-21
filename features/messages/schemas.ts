@@ -10,6 +10,16 @@ export const contactMessageSchema = z.object({
 });
 export type ContactMessageInput = z.input<typeof contactMessageSchema>;
 
+/** An address that gets an email for every contact form message. */
+export const alertRecipientSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Enter a valid email address").max(200)),
+});
+export type AlertRecipientValues = z.input<typeof alertRecipientSchema>;
+
 export type ContactMessage = {
   id: string;
   name: string;

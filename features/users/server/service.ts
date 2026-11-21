@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { CurrentUser, Role, UserStatus } from "@/config/access";
-import { sendInviteCode } from "@/server/auth/invitations";
+import { sendInvitation } from "@/server/auth/invitations";
 import { normalizeEmail } from "@/server/auth/native-auth";
 import { authStore } from "@/server/auth/store";
 import { AppError } from "@/server/core/errors";
@@ -74,8 +74,15 @@ export const usersService = {
     ).map(toUser);
   },
 
-  /** Add someone by email; they get a code to confirm it and set up their account. */
-  async invite(input: { email: string; role: Role }) {
+  /** Add someone; they get an emailed link to choose a password and activate their account. */
+  async invite(input: {
+    firstName: string;
+    lastName: string;
+    otherName: string;
+    email: string;
+    role: Role;
+    churchRole: string;
+  }) {
     const email = normalizeEmail(input.email);
     if (await authStore.findUserByEmail(email)) {
       throw AppError.validation("This email already has an account", { email: ["Already added"] });
@@ -83,16 +90,24 @@ export const usersService = {
     const row = one(
       await db()
         .from("users")
-        .insert({ email, role: input.role, status: "invited" })
+        .insert({
+          email,
+          first_name: input.firstName,
+          last_name: input.lastName,
+          other_name: input.otherName || null,
+          church_role: input.churchRole,
+          role: input.role,
+          status: "invited",
+        })
         .select("id")
         .single<{ id: string }>(),
     );
     const record = await authStore.findUserById(row.id);
-    // The person stays on the list even if the email fails; the code can be resent.
+    // The person stays on the list even if the email fails; the link can be resent.
     let emailSent = false;
     if (record) {
       try {
-        await sendInviteCode(record);
+        await sendInvitation(record);
         emailSent = true;
       } catch (error) {
         logger.error("Invitation email failed", { message: (error as Error)?.message });
@@ -104,7 +119,7 @@ export const usersService = {
   async resendInvite(id: string) {
     const record = await authStore.findUserById(id);
     if (!record) throw AppError.notFound("User not found");
-    await sendInviteCode(record);
+    await sendInvitation(record);
   },
 
   async update(

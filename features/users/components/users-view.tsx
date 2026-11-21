@@ -42,6 +42,7 @@ import {
 } from "../actions";
 import {
   displayName,
+  DUTY_SUGGESTIONS,
   inviteUserSchema,
   updateUserSchema,
   type AdminUser,
@@ -54,7 +55,7 @@ const formatDate = (iso: string | null) =>
 
 const STATUS: Record<AdminUser["status"], { label: string; variant: "default" | "secondary" | "destructive" }> = {
   active: { label: "Active", variant: "default" },
-  invited: { label: "Awaiting code", variant: "secondary" },
+  invited: { label: "Invite sent", variant: "secondary" },
   blocked: { label: "Blocked", variant: "destructive" },
 };
 
@@ -67,7 +68,7 @@ export function UsersView({ users }: { users: AdminUser[] }) {
     <>
       <div className="flex justify-end">
         <Button onClick={() => setInviting(true)}>
-          <UserPlus /> Add church admin
+          <UserPlus /> Add user
         </Button>
       </div>
 
@@ -102,8 +103,7 @@ export function UsersView({ users }: { users: AdminUser[] }) {
 function UserRow({ user: u, onEdit, onRemove }: { user: AdminUser; onEdit: () => void; onRemove: () => void }) {
   const me = useCurrentUser();
   const isMe = me.id === u.id;
-  const joined = u.status !== "invited" || Boolean(u.firstName);
-  const resend = useAction(resendInviteAction, { successMessage: `New code sent to ${u.email}` });
+  const resend = useAction(resendInviteAction, { successMessage: `New invite link sent to ${u.email}` });
   const block = useAction(setUserBlockedAction, {
     successMessage: u.status === "blocked" ? "User unblocked" : "User blocked and signed out",
   });
@@ -112,7 +112,7 @@ function UserRow({ user: u, onEdit, onRemove }: { user: AdminUser; onEdit: () =>
     <TableRow>
       <TableCell>
         <div className="font-medium">
-          {joined ? displayName(u) : <span className="text-muted-foreground">Not joined yet</span>}{" "}
+          {displayName(u)}{" "}
           {isMe && <span className="text-xs font-normal text-muted-foreground">(you)</span>}
         </div>
         <div className="text-sm text-muted-foreground">
@@ -135,14 +135,12 @@ function UserRow({ user: u, onEdit, onRemove }: { user: AdminUser; onEdit: () =>
           <DropdownMenuContent align="end">
             {u.status === "invited" && (
               <DropdownMenuItem disabled={resend.pending} onSelect={() => resend.run({ id: u.id })}>
-                <Send /> Resend code
+                <Send /> Resend invite link
               </DropdownMenuItem>
             )}
-            {u.status !== "invited" && (
-              <DropdownMenuItem onSelect={onEdit}>
-                <Pencil /> Edit
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onSelect={onEdit}>
+              <Pencil /> Edit
+            </DropdownMenuItem>
             {!isMe && (
               <>
                 <DropdownMenuItem
@@ -194,35 +192,80 @@ function RoleField({ control }: { control: Control<{ role: Role }> }) {
   );
 }
 
+/** Free-text duty with common suggestions. */
+function DutyField({ control }: { control: Control<{ churchRole: string }> }) {
+  return (
+    <FormField
+      control={control}
+      name="churchRole"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Duty</FormLabel>
+          <FormControl>
+            <Input list="duty-suggestions" placeholder="e.g. Pastor, Secretary, Media Lead" autoComplete="off" {...field} />
+          </FormControl>
+          <datalist id="duty-suggestions">
+            {DUTY_SUGGESTIONS.map((d) => (
+              <option key={d} value={d} />
+            ))}
+          </datalist>
+          <FormDescription>Their duty in the church. Pick one or type your own.</FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
 function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const form = useForm<InviteUserValues>({
     resolver: zodResolver(inviteUserSchema),
-    defaultValues: { email: "", role: "church_admin" },
+    defaultValues: { firstName: "", lastName: "", otherName: "", email: "", role: "church_admin", churchRole: "" },
   });
   const invite = useAction(inviteUserAction, {
     form,
     successMessage: (r) =>
       r.emailSent
-        ? "Added. A confirmation code has been emailed to them."
-        : "Added, but the email couldn't be sent. Check Email settings, then use “Resend code”.",
+        ? "User added. An invite link has been emailed to them."
+        : "User added, but the email couldn't be sent. Check Email settings, then use “Resend invite link”.",
     onSuccess: () => {
       form.reset();
       onOpenChange(false);
     },
   });
 
+  const text = (name: "firstName" | "lastName" | "otherName", label: string, autoFocus?: boolean) => (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input autoFocus={autoFocus} autoComplete="off" {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add a church admin</DialogTitle>
+          <DialogTitle>Add a user</DialogTitle>
           <DialogDescription>
-            They&apos;ll get an email with a 6-digit code. After confirming it, they set up their name, role in church
-            and password.
+            They&apos;ll get an email with a link to choose their password and activate their account.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form noValidate className="grid gap-4" onSubmit={form.handleSubmit((v) => invite.run(v))}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {text("firstName", "First name", true)}
+              {text("lastName", "Last name")}
+            </div>
+            {text("otherName", "Other name (optional)")}
             <FormField
               control={form.control}
               name="email"
@@ -230,16 +273,17 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" autoFocus {...field} />
+                    <Input type="email" autoComplete="off" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <RoleField control={form.control as unknown as Control<{ role: Role }>} />
+            <DutyField control={form.control as unknown as Control<{ churchRole: string }>} />
             <DialogFooter>
               <Button type="submit" disabled={invite.pending}>
-                <MailPlus /> {invite.pending ? "Sending…" : "Send code"}
+                <MailPlus /> {invite.pending ? "Sending…" : "Send invite link"}
               </Button>
             </DialogFooter>
           </form>
@@ -263,7 +307,7 @@ function EditDialog({ user, onClose }: { user: AdminUser; onClose: () => void })
   });
   const update = useAction(updateUserAction, { form, successMessage: "User updated", onSuccess: onClose });
 
-  const text = (name: "firstName" | "lastName" | "otherName" | "churchRole", label: string) => (
+  const text = (name: "firstName" | "lastName" | "otherName", label: string) => (
     <FormField
       control={form.control}
       name={name}
@@ -292,11 +336,9 @@ function EditDialog({ user, onClose }: { user: AdminUser; onClose: () => void })
               {text("firstName", "First name")}
               {text("lastName", "Last name")}
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {text("otherName", "Other name")}
-              {text("churchRole", "Role in church")}
-            </div>
+            {text("otherName", "Other name")}
             <RoleField control={form.control as unknown as Control<{ role: Role }>} />
+            <DutyField control={form.control as unknown as Control<{ churchRole: string }>} />
             <DialogFooter>
               <Button type="submit" disabled={update.pending}>
                 {update.pending ? "Saving…" : "Save"}

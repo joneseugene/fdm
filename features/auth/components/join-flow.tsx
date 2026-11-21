@@ -1,199 +1,109 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MailCheck } from "lucide-react";
+import { Check, Circle } from "lucide-react";
 
 import { PasswordInput } from "@/components/admin/password-input";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PinInput } from "@/components/ui/pin-input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAction } from "@/hooks/use-action";
-import { completeJoinAction, verifyInviteCodeAction } from "../actions";
-import { INVITE_CODE_LENGTH, joinProfileSchema, type JoinProfileValues } from "../schemas";
+import { cn } from "@/utils/twMerge";
+import { acceptInvitationAction } from "../actions";
+import { acceptInviteSchema, type AcceptInviteValues } from "../schemas";
 
-/**
- * Accepting an invitation:
- *   1. enter the 6-digit code from the email (submits when the last digit is typed)
- *   2. name, other name, role in church and password — then straight into the admin
- */
-export function JoinFlow({ initialEmail, confirmedEmail }: { initialEmail: string; confirmedEmail: string | null }) {
-  const [step, setStep] = useState<"code" | "profile">(confirmedEmail ? "profile" : "code");
-  const [email, setEmail] = useState(confirmedEmail ?? initialEmail);
-
-  return step === "code" ? (
-    <CodeStep
-      email={email}
-      onEmailChange={setEmail}
-      emailLocked={Boolean(initialEmail)}
-      onConfirmed={() => setStep("profile")}
-    />
-  ) : (
-    <ProfileStep email={email} />
-  );
-}
-
-function CodeStep({
-  email,
-  onEmailChange,
-  emailLocked,
-  onConfirmed,
-}: {
+export type InvitationSummary = {
+  name: string;
   email: string;
-  onEmailChange: (email: string) => void;
-  emailLocked: boolean;
-  onConfirmed: () => void;
-}) {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const verify = useAction(verifyInviteCodeAction, {
-    toastErrors: false,
-    onSuccess: onConfirmed,
-    onError: (e) => {
-      setCode("");
-      setError(e.fieldErrors?.code ? e.message : (e.fieldErrors?.email?.[0] ?? e.message));
-    },
-  });
+  roleLabel: string;
+  duty: string | null;
+};
 
-  function submit(value = code) {
-    if (verify.pending || value.length !== INVITE_CODE_LENGTH) return;
-    setError(null);
-    verify.run({ email: email.trim(), code: value });
-  }
+/** Reached from the invitation email: choose a password to activate the account. */
+export function JoinFlow({ token, invitation }: { token: string; invitation: InvitationSummary }) {
+  const form = useForm<AcceptInviteValues>({
+    resolver: zodResolver(acceptInviteSchema),
+    defaultValues: { token, password: "", confirmPassword: "" },
+  });
+  const accept = useAction(acceptInvitationAction, { form });
+  const [password, confirm] = useWatch({ control: form.control, name: ["password", "confirmPassword"] });
+
+  const checks = [
+    { label: "At least 8 characters", ok: password.length >= 8 },
+    { label: "A letter", ok: /[A-Za-z]/.test(password) },
+    { label: "A number", ok: /\d/.test(password) },
+    { label: "Passwords match", ok: password.length > 0 && password === confirm },
+  ];
 
   return (
-    <form
-      noValidate
-      className="grid gap-5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit();
-      }}
-    >
-      <div className="flex items-start gap-3 rounded-lg bg-muted/60 p-3 text-sm">
-        <MailCheck className="mt-0.5 size-5 shrink-0" aria-hidden />
-        <p>
-          We emailed a 6-digit code to{" "}
-          {emailLocked ? <span className="font-semibold">{email}</span> : "your address"}. Enter it below to confirm
-          it&apos;s you.
-        </p>
-      </div>
-
-      {!emailLocked && (
-        <div className="grid gap-2">
-          <Label htmlFor="join-email">Email</Label>
-          <Input
-            id="join-email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
-          />
-        </div>
-      )}
-
-      <div className="grid gap-2">
-        <Label className="justify-self-center">Confirmation code</Label>
-        <PinInput
-          length={INVITE_CODE_LENGTH}
-          value={code}
-          onChange={(v) => {
-            setCode(v);
-            setError(null);
-          }}
-          onComplete={submit}
-          autoFocus={emailLocked}
-          invalid={Boolean(error)}
-          disabled={verify.pending || !email.trim()}
-          aria-label="Confirmation code"
-        />
-        {error && (
-          <p role="alert" className="text-center text-sm text-destructive">
-            {error}
-          </p>
+    <div className="grid gap-5">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-xl border bg-muted/40 p-4 text-sm">
+        <dt className="text-muted-foreground">Name</dt>
+        <dd className="truncate font-medium">{invitation.name}</dd>
+        <dt className="text-muted-foreground">Email</dt>
+        <dd className="truncate font-medium">{invitation.email}</dd>
+        <dt className="text-muted-foreground">Access</dt>
+        <dd className="truncate font-medium">{invitation.roleLabel}</dd>
+        {invitation.duty && (
+          <>
+            <dt className="text-muted-foreground">Duty</dt>
+            <dd className="truncate font-medium">{invitation.duty}</dd>
+          </>
         )}
-      </div>
+      </dl>
 
-      <Button type="submit" disabled={verify.pending || code.length !== INVITE_CODE_LENGTH}>
-        {verify.pending ? "Checking…" : "Confirm"}
-      </Button>
-      <p className="text-center text-xs text-muted-foreground">
-        Didn&apos;t get it? Check spam, or ask your Super Admin to resend the code.
-      </p>
-    </form>
-  );
-}
+      <Form {...form}>
+        <form noValidate className="grid gap-4" onSubmit={form.handleSubmit((v) => accept.run(v))}>
+          {/* Lets password managers save the login under the right email. */}
+          <input type="email" name="username" autoComplete="username" value={invitation.email} readOnly hidden />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>New password</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="new-password" autoFocus {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm password</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="new-password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-function ProfileStep({ email }: { email: string }) {
-  const form = useForm<JoinProfileValues>({
-    resolver: zodResolver(joinProfileSchema),
-    defaultValues: { firstName: "", lastName: "", otherName: "", churchRole: "", password: "", confirmPassword: "" },
-  });
-  const complete = useAction(completeJoinAction, { form });
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs" aria-label="Password requirements">
+            {checks.map((c) => (
+              <li
+                key={c.label}
+                className={cn(
+                  "flex items-center gap-1.5 transition-colors",
+                  c.ok ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground",
+                )}
+              >
+                {c.ok ? <Check className="size-3.5" aria-hidden /> : <Circle className="size-3" aria-hidden />}
+                {c.label}
+                <span className="sr-only">{c.ok ? "(done)" : "(not yet)"}</span>
+              </li>
+            ))}
+          </ul>
 
-  const text = (name: "firstName" | "lastName" | "otherName" | "churchRole", label: string, extra?: { description?: string; placeholder?: string; autoComplete?: string }) => (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Input placeholder={extra?.placeholder} autoComplete={extra?.autoComplete} {...field} />
-          </FormControl>
-          {extra?.description && <FormDescription>{extra.description}</FormDescription>}
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-
-  return (
-    <Form {...form}>
-      <form noValidate className="grid gap-4" onSubmit={form.handleSubmit((v) => complete.run(v))}>
-        <p className="rounded-lg bg-muted/60 p-3 text-sm">
-          Email confirmed{email ? <> — <span className="font-semibold">{email}</span></> : ""}. Now set up your account.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {text("firstName", "First name", { autoComplete: "given-name" })}
-          {text("lastName", "Last name", { autoComplete: "family-name" })}
-        </div>
-        {text("otherName", "Other name (optional)", { autoComplete: "additional-name" })}
-        {text("churchRole", "Role in church", { placeholder: "e.g. Pastor, Secretary, Media Lead" })}
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <PasswordInput autoComplete="new-password" {...field} />
-              </FormControl>
-              <FormDescription>At least 8 characters, with a letter and a number.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm password</FormLabel>
-              <FormControl>
-                <PasswordInput autoComplete="new-password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={complete.pending}>
-          {complete.pending ? "Setting up…" : "Create my account"}
-        </Button>
-      </form>
-    </Form>
+          <Button type="submit" disabled={accept.pending}>
+            {accept.pending ? "Activating…" : "Activate my account"}
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 }
