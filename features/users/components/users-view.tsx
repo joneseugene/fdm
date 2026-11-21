@@ -48,7 +48,6 @@ import {
 } from "../actions";
 import {
   displayName,
-  DUTY_SUGGESTIONS,
   inviteUserSchema,
   updateUserSchema,
   type AdminUser,
@@ -396,14 +395,9 @@ function DutyField({ control }: { control: Control<{ churchRole: string }> }) {
         <FormItem>
           <FormLabel>Duty</FormLabel>
           <FormControl>
-            <Input list="duty-suggestions" placeholder="e.g. Pastor, Secretary, Media Lead" autoComplete="off" {...field} />
+            <Input type="text" placeholder="e.g. Pastor, Secretary, Media Lead" autoComplete="off" {...field} />
           </FormControl>
-          <datalist id="duty-suggestions">
-            {DUTY_SUGGESTIONS.map((d) => (
-              <option key={d} value={d} />
-            ))}
-          </datalist>
-          <FormDescription>Their duty in the church. Pick one or type your own.</FormDescription>
+          <FormDescription>Their duty in the church.</FormDescription>
           <FormMessage />
         </FormItem>
       )}

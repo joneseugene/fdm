@@ -3,23 +3,6 @@ import { z } from "zod";
 import { ROLES, type Role, type UserStatus } from "@/config/access";
 import { SECTION_KEYS } from "@/features/content/schemas";
 
-/** Suggestions for the "Duty" field (free text, so any duty can be typed). */
-export const DUTY_SUGGESTIONS = [
-  "Pastor",
-  "Assistant Pastor",
-  "Elder",
-  "Deacon",
-  "Secretary",
-  "Treasurer",
-  "Media Lead",
-  "Worship Leader",
-  "Youth Leader",
-  "Women's Ministry Lead",
-  "Men's Ministry Lead",
-  "Children's Ministry Lead",
-  "Usher",
-] as const;
-
 const sectionKey = z.enum(SECTION_KEYS as [string, ...string[]]);
 
 /** Who they are and what they may do. Shared by "Add user" and "Edit". */
