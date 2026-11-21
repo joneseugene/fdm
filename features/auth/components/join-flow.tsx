@@ -99,7 +99,7 @@ export function JoinFlow({ token, invitation }: { token: string; invitation: Inv
             ))}
           </ul>
 
-          <Button type="submit" disabled={accept.pending}>
+          <Button type="submit" loading={accept.pending}>
             {accept.pending ? "Activating…" : "Activate my account"}
           </Button>
         </form>

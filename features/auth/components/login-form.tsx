@@ -79,7 +79,7 @@ export function LoginForm({ next }: { next?: string }) {
             {form.formState.errors.root.message}
           </p>
         )}
-        <Button type="submit" disabled={signIn.pending}>
+        <Button type="submit" loading={signIn.pending}>
           {signIn.pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>

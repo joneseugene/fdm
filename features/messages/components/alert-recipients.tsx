@@ -81,7 +81,7 @@ export function AlertRecipients({ emails }: { emails: string[] }) {
                 </FormItem>
               )}
             />
-            <Button type="submit" variant="outline" disabled={add.pending}>
+            <Button type="submit" variant="outline" loading={add.pending}>
               <Plus /> {add.pending ? "Adding…" : "Add address"}
             </Button>
           </form>

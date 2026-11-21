@@ -137,6 +137,19 @@
   [data-radix-collapsible-content] { animation: none !important; }
 }
 
+/* Blade spinner (components/ui/spinner.tsx): each blade fades in turn. */
+@keyframes spinner-blade-fade {
+  from { opacity: 1; }
+  to { opacity: 0.12; }
+}
+.spinner-blade {
+  opacity: 0.12;
+  animation: spinner-blade-fade 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner-blade { animation-duration: 2.4s; }
+}
+
 /* Slim, unobtrusive scrollbar: thin rounded thumb, invisible track, darker on hover. */
 @utility scrollbar-thin {
   scrollbar-width: thin;
@@ -178,7 +191,9 @@
   }
 
   /* The admin uses the sans font for headings. */
-  .admin-ui :is(h1, h2, h3, h4) {
+  /* `body:has(.admin-ui)` also reaches dialogs, which render outside the admin wrapper. */
+  .admin-ui :is(h1, h2, h3, h4),
+  body:has(.admin-ui) :is(h1, h2, h3, h4) {
     font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   }
 }

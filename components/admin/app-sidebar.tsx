@@ -2,11 +2,12 @@
 
 import { useCallback, useMemo, useSyncExternalStore, useTransition } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, LogOut } from "lucide-react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Sidebar,
   SidebarContent,
@@ -28,7 +29,7 @@ import { routes } from "@/config/routes";
 import { signOutAction } from "@/features/auth/actions";
 import { ADMIN_SECTION_ORDER, SECTION_META, type SectionKey } from "@/features/content/schemas";
 import { SECTION_ICONS } from "@/features/content/section-icons";
-import logo from "@/public/logo.png";
+import logo from "@/public/logo-mark.png";
 import { cn } from "@/utils/twMerge";
 import { useCurrentUser } from "./session-provider";
 
@@ -112,7 +113,7 @@ export function AppSidebar({ unreadMessages, inReview }: { unreadMessages: numbe
           className="flex items-center gap-3 rounded-xl p-1 outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-2 group-data-[collapsible=icon]:justify-center"
         >
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-sidebar-border group-data-[collapsible=icon]:size-8">
-            <Image src={logo} alt="" width={28} height={28} className="size-7 rounded-lg group-data-[collapsible=icon]:size-6" />
+            <Image src={logo} alt="" className="h-7 w-auto group-data-[collapsible=icon]:h-6" priority />
           </span>
           <span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate text-sm font-bold tracking-tight">FDMG</span>
@@ -154,7 +155,7 @@ export function AppSidebar({ unreadMessages, inReview }: { unreadMessages: numbe
                           <SidebarMenuItem key={item.href}>
                             <SidebarMenuButton asChild isActive={isActive(pathname, item.href)} tooltip={item.title} className={itemClass}>
                               <Link href={item.href} onClick={onNavigate}>
-                                <item.icon aria-hidden />
+                                <NavIcon icon={item.icon} />
                                 <span>{item.title}</span>
                               </Link>
                             </SidebarMenuButton>
@@ -186,6 +187,12 @@ export function AppSidebar({ unreadMessages, inReview }: { unreadMessages: numbe
       <SidebarRail />
     </Sidebar>
   );
+}
+
+/** The item's icon, swapped for a spinner while its page is loading. */
+function NavIcon({ icon: Icon }: { icon: NavItem["icon"] }) {
+  const { pending } = useLinkStatus();
+  return pending ? <Spinner label="Opening page" /> : <Icon aria-hidden />;
 }
 
 /** Who's signed in, with a quick sign-out. Collapses to the avatar. */

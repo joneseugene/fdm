@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import sharp, { type OutputInfo } from "sharp";
+import type { OutputInfo } from "sharp";
 
 import type { ImageAsset } from "@/features/content/schemas";
 import { IMAGE_PRESETS, MAX_UPLOAD_BYTES, type ImagePreset } from "@/lib/images";
@@ -42,6 +42,10 @@ export async function storeImage(form: FormData, preset: ImagePreset): Promise<I
   let output: { data: Buffer; info: OutputInfo };
   let blur: Buffer;
   try {
+    // Loaded only when an image is uploaded, never by other actions that share this bundle.
+    // Keep the "sharp" dependency on the same version Next.js uses: two native
+    // copies (libvips) in one process fail to load on Windows.
+    const { default: sharp } = await import("sharp");
     output = await sharp(input, { limitInputPixels: 50_000_000 })
       .rotate()
       .resize({ width: maxSize, height: maxSize, fit: "inside", withoutEnlargement: true })

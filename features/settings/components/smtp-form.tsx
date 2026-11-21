@@ -142,7 +142,7 @@ export function SmtpForm({ settings, myEmail }: { settings: SmtpSettingsView; my
             </CardContent>
           </Card>
 
-          <Button type="submit" className="w-fit" disabled={save.pending}>
+          <Button type="submit" className="w-fit" loading={save.pending}>
             <Save /> {save.pending ? "Saving…" : "Save settings"}
           </Button>
         </form>
@@ -161,7 +161,8 @@ export function SmtpForm({ settings, myEmail }: { settings: SmtpSettingsView; my
           <Button
             type="button"
             variant="outline"
-            disabled={test.pending || !enabled || form.formState.isDirty}
+            loading={test.pending}
+            disabled={!enabled || form.formState.isDirty}
             onClick={() => test.run({ to: testTo })}
           >
             <Send /> {test.pending ? "Sending…" : "Send test"}

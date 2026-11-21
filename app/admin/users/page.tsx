@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Admin users" };
 
 export default async function UsersPage() {
   const user = await requirePermission("users.manage");
-  const users = await usersService.list();
+  const users = await usersService.list(user);
   return (
     <>
       <PageHeader
@@ -18,11 +18,11 @@ export default async function UsersPage() {
         title="Admin users"
         description={
           user.role === "super_admin"
-            ? "Everyone who can sign in to this admin. Super Admins manage everything; Church Admins manage content, messages and Content Managers; Content Managers edit the sections you give them."
-            : "Everyone who can sign in to this admin. You can add and manage Content Managers and choose which sections each one can edit."
+            ? "Everyone you manage. Church Admins manage content, messages and Content Managers; Content Managers edit the sections you give them."
+            : "The Content Managers you manage, and which sections each one can edit."
         }
       />
-      <UsersView users={users} />
+      <UsersView users={users} loadedAt={new Date().toISOString()} />
     </>
   );
 }

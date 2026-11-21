@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useForm, useWatch, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Ban, MailPlus, MoreHorizontal, Pencil, Send, Trash2, UserCheck, UserPlus } from "lucide-react";
+import { Ban, MailPlus, MoreHorizontal, Pencil, Send, Trash2, UserCheck, UserPlus, Users as UsersIcon } from "lucide-react";
 
+import { DataView, type DataColumn } from "@/components/admin/data-view";
 import { useCurrentUser } from "@/components/admin/session-provider";
+import { TimeAgo } from "@/components/admin/time-ago";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +36,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { canManageRole, MANAGEABLE_ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, type Role } from "@/config/access";
 import { ADMIN_SECTION_ORDER, SECTION_META } from "@/features/content/schemas";
 import { useAction } from "@/hooks/use-action";
@@ -55,13 +56,10 @@ import {
   type UpdateUserValues,
 } from "../schemas";
 
-const formatDate = (iso: string | null) =>
-  iso ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(new Date(iso)) : "Never";
-
-const STATUS: Record<AdminUser["status"], { label: string; variant: "default" | "secondary" | "destructive" }> = {
-  active: { label: "Active", variant: "default" },
-  invited: { label: "Invite sent", variant: "secondary" },
-  blocked: { label: "Blocked", variant: "destructive" },
+const STATUS: Record<AdminUser["status"], { label: string; className: string }> = {
+  active: { label: "Active", className: "bg-emerald-600 text-white hover:bg-emerald-600" },
+  invited: { label: "Invite sent", className: "bg-sky-600 text-white hover:bg-sky-600" },
+  blocked: { label: "Blocked", className: "bg-destructive text-destructive-foreground hover:bg-destructive" },
 };
 
 /** "All sections · Can publish", "Hero · Needs review", … for a Content Manager. */
@@ -77,43 +75,139 @@ function accessSummary(u: Pick<AdminUser, "role" | "contentSections" | "canPubli
   return `${scope} · ${u.canPublish ? "Can publish" : "Needs review"}`;
 }
 
-export function UsersView({ users }: { users: AdminUser[] }) {
+const initials = (u: AdminUser) =>
+  `${u.firstName[0] ?? ""}${u.lastName[0] ?? ""}`.toUpperCase() || u.email[0]?.toUpperCase() || "?";
+
+function Avatar({ user }: { user: AdminUser }) {
+  return (
+    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-bold text-foreground" aria-hidden>
+      {initials(user)}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: AdminUser["status"] }) {
+  return <Badge className={STATUS[status].className}>{STATUS[status].label}</Badge>;
+}
+
+export function UsersView({ users, loadedAt }: { users: AdminUser[]; loadedAt: string }) {
   const me = useCurrentUser();
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [removing, setRemoving] = useState<AdminUser | null>(null);
-  const canAdd = MANAGEABLE_ROLES[me.role].length > 0;
+  const roles = MANAGEABLE_ROLES[me.role];
+  const canAdd = roles.length > 0;
+
+  const columns: DataColumn<AdminUser>[] = [
+    {
+      id: "name",
+      header: "Name",
+      cell: (u) => (
+        <div className="flex items-center gap-3">
+          <Avatar user={u} />
+          <div className="min-w-0">
+            <div className="truncate font-medium">{displayName(u)}</div>
+            <div className="truncate text-sm text-muted-foreground">{u.email}</div>
+          </div>
+        </div>
+      ),
+    },
+    { id: "duty", header: "Duty", className: "hidden lg:table-cell", cell: (u) => u.churchRole || <span className="text-muted-foreground">—</span> },
+    {
+      id: "access",
+      header: "Access",
+      cell: (u) => (
+        <>
+          <div>{ROLE_LABELS[u.role]}</div>
+          {accessSummary(u) && <div className="text-xs text-muted-foreground">{accessSummary(u)}</div>}
+        </>
+      ),
+    },
+    { id: "status", header: "Status", cell: (u) => <StatusBadge status={u.status} /> },
+    {
+      id: "seen",
+      header: "Last sign-in",
+      className: "hidden lg:table-cell whitespace-nowrap text-sm text-muted-foreground",
+      cell: (u) => <TimeAgo date={u.lastLoginAt} />,
+    },
+    {
+      id: "added",
+      header: "Added",
+      className: "hidden xl:table-cell whitespace-nowrap text-sm text-muted-foreground",
+      cell: (u) => <TimeAgo date={u.createdAt} />,
+    },
+  ];
 
   return (
     <>
-      {canAdd && (
-        <div className="flex justify-end">
-          <Button onClick={() => setInviting(true)}>
-            <UserPlus /> {me.role === "super_admin" ? "Add user" : "Add content manager"}
-          </Button>
-        </div>
-      )}
-
-      <Card className="overflow-hidden p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden sm:table-cell">Access</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="hidden md:table-cell">Last sign-in</TableHead>
-              <TableHead className="w-12">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((u) => (
-              <UserRow key={u.id} user={u} onEdit={() => setEditing(u)} onRemove={() => setRemoving(u)} />
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+      <DataView
+        rows={users}
+        rowKey={(u) => u.id}
+        noun={["user", "users"]}
+        loadedAt={loadedAt}
+        columns={columns}
+        searchText={(u) => [displayName(u), u.email, u.churchRole ?? "", ROLE_LABELS[u.role]].join(" ")}
+        searchPlaceholder="Search name, email or duty"
+        filters={[
+          ...(roles.length > 1
+            ? [{ id: "role", label: "access levels", options: roles.map((r) => ({ value: r, label: ROLE_LABELS[r] })), match: (u: AdminUser, v: string) => u.role === v }]
+            : []),
+          {
+            id: "status",
+            label: "statuses",
+            options: (Object.keys(STATUS) as AdminUser["status"][]).map((s) => ({ value: s, label: STATUS[s].label })),
+            match: (u, v) => u.status === v,
+          },
+        ]}
+        toolbar={
+          canAdd && (
+            <Button onClick={() => setInviting(true)}>
+              <UserPlus /> <span className="hidden sm:inline">{me.role === "super_admin" ? "Add user" : "Add content manager"}</span>
+            </Button>
+          )
+        }
+        empty={
+          <Card className="grid justify-items-center gap-2 px-6 py-14 text-center">
+            <UsersIcon className="size-8 text-muted-foreground" aria-hidden />
+            <p className="font-medium">No one here yet</p>
+            <p className="text-sm text-muted-foreground">
+              {canAdd ? "Add someone and they'll get an email to set up their account." : "There are no accounts you manage."}
+            </p>
+          </Card>
+        }
+        actions={(u) => <UserActions user={u} onEdit={() => setEditing(u)} onRemove={() => setRemoving(u)} />}
+        card={(u) => (
+          <div className="grid gap-2">
+            <div className="flex items-center gap-3">
+              <Avatar user={u} />
+              <div className="min-w-0">
+                <div className="truncate font-medium">{displayName(u)}</div>
+                <div className="truncate text-sm text-muted-foreground">{u.email}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StatusBadge status={u.status} />
+              <Badge variant="outline">{ROLE_LABELS[u.role]}</Badge>
+              {u.churchRole && <Badge variant="secondary">{u.churchRole}</Badge>}
+            </div>
+            {accessSummary(u) && <p className="text-xs text-muted-foreground">{accessSummary(u)}</p>}
+            <dl className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <dt className="text-muted-foreground">Last sign-in</dt>
+                <dd className="font-medium">
+                  <TimeAgo date={u.lastLoginAt} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Added</dt>
+                <dd className="font-medium">
+                  <TimeAgo date={u.createdAt} />
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
+      />
 
       {canAdd && <InviteDialog open={inviting} onOpenChange={setInviting} />}
       {editing && <EditDialog user={editing} onClose={() => setEditing(null)} />}
@@ -122,73 +216,43 @@ export function UsersView({ users }: { users: AdminUser[] }) {
   );
 }
 
-function UserRow({ user: u, onEdit, onRemove }: { user: AdminUser; onEdit: () => void; onRemove: () => void }) {
+function UserActions({ user: u, onEdit, onRemove }: { user: AdminUser; onEdit: () => void; onRemove: () => void }) {
   const me = useCurrentUser();
-  const isMe = me.id === u.id;
-  const manageable = canManageRole(me, u.role);
-  const access = accessSummary(u);
   const resend = useAction(resendInviteAction, { successMessage: `New invite link sent to ${u.email}` });
   const block = useAction(setUserBlockedAction, {
     successMessage: u.status === "blocked" ? "User unblocked" : "User blocked and signed out",
   });
+  if (!canManageRole(me, u.role) || u.id === me.id) return null;
+  const busy = resend.pending || block.pending;
 
   return (
-    <TableRow>
-      <TableCell>
-        <div className="font-medium">
-          {displayName(u)} {isMe && <span className="text-xs font-normal text-muted-foreground">(you)</span>}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {u.email}
-          {u.churchRole && <> · {u.churchRole}</>}
-        </div>
-      </TableCell>
-      <TableCell className="hidden sm:table-cell">
-        <div>{ROLE_LABELS[u.role]}</div>
-        {access && <div className="text-xs text-muted-foreground">{access}</div>}
-      </TableCell>
-      <TableCell>
-        <Badge variant={STATUS[u.status].variant}>{STATUS[u.status].label}</Badge>
-      </TableCell>
-      <TableCell className="hidden text-sm text-muted-foreground md:table-cell">{formatDate(u.lastLoginAt)}</TableCell>
-      <TableCell>
-        {manageable && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={`Actions for ${u.email}`}>
-                <MoreHorizontal />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {u.status === "invited" && (
-                <DropdownMenuItem disabled={resend.pending} onSelect={() => resend.run({ id: u.id })}>
-                  <Send /> Resend invite link
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onSelect={onEdit}>
-                <Pencil /> Edit
-              </DropdownMenuItem>
-              {!isMe && (
-                <>
-                  <DropdownMenuItem
-                    disabled={block.pending}
-                    onSelect={() => block.run({ id: u.id, blocked: u.status !== "blocked" })}
-                  >
-                    {u.status === "blocked" ? <UserCheck /> : <Ban />} {u.status === "blocked" ? "Unblock" : "Block"}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onRemove}>
-                    <Trash2 /> Remove
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" loading={busy} aria-label={`Actions for ${u.email}`}>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {u.status === "invited" && (
+          <DropdownMenuItem disabled={busy} onSelect={() => resend.run({ id: u.id })}>
+            <Send /> Resend invite link
+          </DropdownMenuItem>
         )}
-      </TableCell>
-    </TableRow>
+        <DropdownMenuItem onSelect={onEdit}>
+          <Pencil /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={busy} onSelect={() => block.run({ id: u.id, blocked: u.status !== "blocked" })}>
+          {u.status === "blocked" ? <UserCheck /> : <Ban />} {u.status === "blocked" ? "Unblock" : "Block"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onRemove}>
+          <Trash2 /> Remove
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
+
 
 // ---------- Shared fields ----------
 
@@ -425,7 +489,7 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
             <RoleField control={form.control as unknown as Control<AccessFields>} />
             <ContentAccessField control={form.control as unknown as Control<AccessFields>} />
             <DialogFooter>
-              <Button type="submit" disabled={invite.pending}>
+              <Button type="submit" loading={invite.pending}>
                 <MailPlus /> {invite.pending ? "Sending…" : "Send invite link"}
               </Button>
             </DialogFooter>
@@ -487,7 +551,7 @@ function EditDialog({ user, onClose }: { user: AdminUser; onClose: () => void })
             <RoleField control={form.control as unknown as Control<AccessFields>} />
             <ContentAccessField control={form.control as unknown as Control<AccessFields>} />
             <DialogFooter>
-              <Button type="submit" disabled={update.pending}>
+              <Button type="submit" loading={update.pending}>
                 {update.pending ? "Saving…" : "Save"}
               </Button>
             </DialogFooter>

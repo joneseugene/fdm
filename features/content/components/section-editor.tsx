@@ -164,15 +164,15 @@ export function SectionEditor({
                   Undo changes
                 </Button>
               )}
-              <Button type="submit" variant="outline" disabled={!isDirty || busy}>
+              <Button type="submit" variant="outline" loading={saveDraft.pending} disabled={!isDirty || busy}>
                 <Save /> {saveDraft.pending ? "Saving…" : "Save draft"}
               </Button>
               {canPublish ? (
-                <Button type="button" onClick={run(publish.run)} disabled={!hasWork || busy}>
+                <Button type="button" onClick={run(publish.run)} loading={publish.pending} disabled={!hasWork || busy}>
                   <Upload /> {publish.pending ? "Publishing…" : "Publish"}
                 </Button>
               ) : (
-                <Button type="button" onClick={run(submit.run)} disabled={(!isDirty && (!draft || inReview)) || busy}>
+                <Button type="button" onClick={run(submit.run)} loading={submit.pending} disabled={(!isDirty && (!draft || inReview)) || busy}>
                   <Send /> {submit.pending ? "Sending…" : inReview && !isDirty ? "Sent for review" : "Send for review"}
                 </Button>
               )}
@@ -287,7 +287,7 @@ function SendBack({ sectionKey }: { sectionKey: SectionKey }) {
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" disabled={send.pending} onClick={() => send.run({ key: sectionKey, note })}>
+            <Button type="button" loading={send.pending} onClick={() => send.run({ key: sectionKey, note })}>
               <Undo2 /> {send.pending ? "Sending…" : "Send back"}
             </Button>
           </DialogFooter>

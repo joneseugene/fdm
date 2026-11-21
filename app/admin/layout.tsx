@@ -6,7 +6,7 @@ import { AppSidebar } from "@/components/admin/app-sidebar";
 import { SessionProvider } from "@/components/admin/session-provider";
 import { SiteHeader } from "@/components/admin/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingPanel } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/sonner";
 import { can, canEditSection } from "@/config/access";
 import type { SectionKey } from "@/features/content/schemas";
@@ -62,10 +62,7 @@ function ShellSkeleton() {
       <div className="hidden w-64 shrink-0 border-r bg-sidebar md:block" />
       <div className="flex flex-1 flex-col">
         <div className="h-14 border-b" />
-        <div className="mx-auto grid w-full max-w-5xl gap-4 p-4 sm:p-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-64 w-full" />
-        </div>
+        <LoadingPanel className="flex-1" />
       </div>
     </div>
   );

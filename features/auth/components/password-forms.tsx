@@ -70,7 +70,7 @@ export function ForgotPasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={request.pending}>
+        <Button type="submit" loading={request.pending}>
           {request.pending ? "Sending…" : "Send reset link"}
         </Button>
         <Link href={routes.login} className="text-center text-sm text-muted-foreground hover:text-foreground">
@@ -129,7 +129,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={reset.pending}>
+        <Button type="submit" loading={reset.pending}>
           {reset.pending ? "Saving…" : "Set password"}
         </Button>
       </form>
@@ -191,7 +191,7 @@ export function ChangePasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={change.pending} className="w-fit">
+        <Button type="submit" loading={change.pending} className="w-fit">
           {change.pending ? "Saving…" : "Change password"}
         </Button>
       </form>

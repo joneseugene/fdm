@@ -1,6 +1,6 @@
 import "server-only";
 
-import { canManageRole, ROLE_LABELS, type CurrentUser, type Role, type UserStatus } from "@/config/access";
+import { canManageRole, MANAGEABLE_ROLES, ROLE_LABELS, type CurrentUser, type Role, type UserStatus } from "@/config/access";
 import { sendInvitation } from "@/server/auth/invitations";
 import { normalizeEmail } from "@/server/auth/native-auth";
 import { authStore } from "@/server/auth/store";
@@ -86,13 +86,18 @@ type ProfileInput = {
 };
 
 export const usersService = {
-  async list(): Promise<AdminUser[]> {
+  /** The accounts `actor` manages — never themselves (their own account is under Change password). */
+  async list(actor: CurrentUser): Promise<AdminUser[]> {
+    const roles = MANAGEABLE_ROLES[actor.role];
+    if (!roles.length) return [];
     return rows(
       await db()
         .from("users")
         .select(COLUMNS)
         .is("deleted_at", null)
-        .order("created_at", { ascending: true })
+        .in("role", [...roles])
+        .neq("id", actor.id)
+        .order("created_at", { ascending: false })
         .returns<Row[]>(),
     ).map(toUser);
   },
