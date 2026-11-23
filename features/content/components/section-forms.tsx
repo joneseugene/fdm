@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SERVICE_ICON_NAMES, SOCIAL_PLATFORMS, SOCIAL_PLATFORM_IDS, ServiceIcon } from "../icons";
 import type { SectionKey } from "../schemas";
 import { ImageField, ListField, SelectField, SwitchField, TextField } from "./fields";
+import { LiveVideoField } from "./live-video-field";
 
 function Group({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -135,14 +136,9 @@ function LiveForm() {
   return (
     <>
       <VisibleField />
-      <Group title="Video">
-        <TextField
-          name="videoUrl"
-          label="Facebook or YouTube link"
-          placeholder="https://www.facebook.com/yourpage/videos/…"
-          description="Paste the link to a video, a live stream or a YouTube channel (youtube.com/channel/…) — it is turned into a player automatically. Leave empty to hide the live section and buttons."
-        />
-        <TextField name="note" label="Note under the video" />
+      <Group title="Video" description="Paste a link, check the preview, then publish.">
+        <LiveVideoField name="videoUrl" />
+        <TextField name="note" label="Note under the video" placeholder="Streaming live every Sunday at 9:00 AM" />
       </Group>
       <HeadingFields />
     </>

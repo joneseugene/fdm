@@ -11,8 +11,10 @@ import { ScriptureCard } from "@/components/ScriptureCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { ServiceCard } from "@/components/ServiceCard";
 import { SocialIcon } from "@/components/SocialIcon";
+import { VideoFrame } from "@/components/VideoFrame";
 import type { SiteContent } from "@/features/content/schemas";
-import { toEmbedUrl } from "@/lib/embed";
+import { toVideoEmbed } from "@/lib/embed";
+import { cn } from "@/utils/twMerge";
 
 /**
  * The public landing page. A server component: it ships as static HTML with
@@ -21,11 +23,12 @@ import { toEmbedUrl } from "@/lib/embed";
 export function HomePage({ content, year }: { content: SiteContent; year: number }) {
   const { site, navigation, hero, live, about, services, scriptures, activities, branches, contact, socials } =
     content;
-  const embedUrl = live.visible && live.videoUrl ? toEmbedUrl(live.videoUrl) : null;
+  const embed = live.visible && live.videoUrl ? toVideoEmbed(live.videoUrl) : null;
+  const embedUrl = embed?.src ?? null;
   const otherBranches = branches.items.filter((b) => !b.headquarters);
 
   return (
-    <LiveProvider embedUrl={embedUrl} title={`Live Service · ${site.shortName}`}>
+    <LiveProvider embed={embed} title={`Live Service · ${site.shortName}`}>
       <div className="min-h-screen bg-background">
         <Navbar
           name={site.name}
@@ -91,23 +94,19 @@ export function HomePage({ content, year }: { content: SiteContent; year: number
           </div>
         </section>
 
-        {embedUrl && (
+        {embed && (
           <section id="live" className="bg-cream py-20 sm:py-28">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <SectionHeader eyebrow={live.eyebrow} title={live.title} subtitle={live.subtitle} />
 
-              <div className="mx-auto mt-12 max-w-3xl overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-                <div className="aspect-video w-full bg-black">
-                  {/* Lazy: the player's scripts don't compete with the hero. */}
-                  <iframe
-                    title={live.title}
-                    src={embedUrl}
-                    loading="lazy"
-                    className="h-full w-full"
-                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
+              <div
+                className={cn(
+                  "mx-auto mt-12 overflow-hidden rounded-2xl border border-border bg-card shadow-soft",
+                  embed.kind === "facebook-page" ? "max-w-[500px]" : "max-w-3xl",
+                )}
+              >
+                {/* Lazy: the player's scripts don't compete with the hero. */}
+                <VideoFrame embed={embed} title={live.title} lazy />
               </div>
 
               {live.note && <p className="mt-6 text-center text-sm text-muted-foreground">{live.note}</p>}

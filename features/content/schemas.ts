@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isSupportedVideoUrl } from "@/lib/embed";
+import { videoUrlProblem } from "@/lib/embed";
 import { SOCIAL_PLATFORM_IDS } from "./icons";
 
 /**
@@ -87,7 +87,10 @@ export const liveSchema = z.object({
   videoUrl: z
     .string()
     .trim()
-    .refine((v) => v === "" || isSupportedVideoUrl(v), "Paste a Facebook or YouTube link (https://…)"),
+    .superRefine((v, ctx) => {
+      const problem = videoUrlProblem(v);
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    }),
   note: text(200),
 });
 

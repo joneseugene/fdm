@@ -10,6 +10,7 @@ import { serverEnv } from "@/server/env";
 import { reviewNoteSchema, SECTION_KEYS, type ImageAsset } from "./schemas";
 import { deleteDraft, returnDraft, saveDraft } from "./server/drafts";
 import { resetSection, saveSection } from "./server/service";
+import { checkVideoLink } from "./server/video";
 
 /**
  * Editing a section:
@@ -83,6 +84,16 @@ export const resetSectionAction = defineAction({
     await resetSection(key);
   },
   refresh: true,
+});
+
+/** "Test link" on the live service form. Read-only: nothing is saved. */
+export const checkVideoLinkAction = defineAction({
+  permissions: ["content.edit"],
+  input: z.object({ url: z.string().trim().min(1, "Paste a link first").max(2000) }),
+  handler: async ({ url }) => {
+    await assertSection("live");
+    return checkVideoLink(url);
+  },
 });
 
 /**
