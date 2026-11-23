@@ -44,6 +44,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Lets sticky bars sit above the iPhone home indicator (env(safe-area-inset-bottom)).
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FBF8F1" },
     { media: "(prefers-color-scheme: dark)", color: "#1F1912" },

@@ -23,8 +23,8 @@ import { useCurrentUser } from "./session-provider";
 /** Sticky top bar: sidebar toggle, "View site" and the account menu. */
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur sm:px-4">
-      <SidebarTrigger className="-ml-1" />
+    <header className="sticky top-0 z-20 flex min-h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-4">
+      <SidebarTrigger className="-ml-1 size-9 [&_svg]:size-5" />
       <Separator orientation="vertical" className="mr-1 h-5" />
       <div className="flex-1" />
       <Button asChild variant="outline" size="sm">

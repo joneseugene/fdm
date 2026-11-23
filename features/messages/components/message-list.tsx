@@ -112,7 +112,7 @@ export function MessageList({ messages, loadedAt }: { messages: ContactMessage[]
           </Card>
         }
         card={(m) => (
-          <div className="grid gap-1.5">
+          <div className="grid min-w-0 grid-cols-1 gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <span className={cn("font-medium", !m.readAt && "font-semibold")}>{m.name}</span>
               {!m.readAt && <Badge>New</Badge>}

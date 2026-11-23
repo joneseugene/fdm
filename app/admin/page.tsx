@@ -39,7 +39,8 @@ export default async function DashboardPage() {
         title={`Welcome, ${user.firstName}`}
         description="Manage everything visitors see on the website."
         actions={
-          <Button asChild variant="outline">
+          // Phones already have "View site" in the top bar.
+          <Button asChild variant="outline" className="hidden sm:inline-flex">
             <Link href={routes.site} target="_blank">
               <ExternalLink /> View site
             </Link>
@@ -47,7 +48,7 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {canEditSection(user, "hero") && (
           <Shortcut
             href={routes.section("hero")}
@@ -159,18 +160,23 @@ function Shortcut({
 }) {
   return (
     <Link href={href} className="group">
-      <Card className="h-full transition-shadow group-hover:shadow-md">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* Phones: a compact row (icon, text, arrow). Wider: a tile. */}
+      <Card className="h-full transition-shadow group-hover:shadow-md group-active:bg-muted/40">
+        <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 sm:flex-col sm:items-stretch sm:gap-0 sm:p-6">
+          <div className="flex shrink-0 items-center justify-between sm:w-full">
             <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15">
               <Icon className="size-5" aria-hidden />
             </span>
-            {badge && <Badge>{badge}</Badge>}
+            {badge && <Badge className="hidden sm:inline-flex">{badge}</Badge>}
           </div>
-          <CardTitle className="flex items-center gap-1 pt-2 text-base">
-            {title} <ArrowRight className="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
-          </CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <div className="min-w-0 flex-1">
+            <CardTitle className="flex items-center gap-2 text-base sm:pt-2">
+              {title}
+              {badge && <Badge className="sm:hidden">{badge}</Badge>}
+              <ArrowRight className="ml-auto size-4 text-muted-foreground transition-opacity sm:ml-0 sm:opacity-0 sm:group-hover:opacity-100" />
+            </CardTitle>
+            <CardDescription className="mt-1 line-clamp-1 sm:mt-1.5 sm:line-clamp-none">{description}</CardDescription>
+          </div>
         </CardHeader>
       </Card>
     </Link>

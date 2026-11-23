@@ -294,7 +294,7 @@ export function ListField({
   };
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       {fields.length === 0 && (
         <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
           No {itemNoun}s yet.
@@ -358,7 +358,7 @@ export function ListField({
               </Button>
             </div>
             {/* Collapsed items stay mounted (hidden) so validation still reaches them. */}
-            <div className={cn("grid gap-4 border-t p-4", !expanded && "hidden")}>{children(`${name}.${index}`, index)}</div>
+            <div className={cn("grid grid-cols-1 gap-4 border-t p-3 sm:p-4", !expanded && "hidden")}>{children(`${name}.${index}`, index)}</div>
           </div>
         );
       })}

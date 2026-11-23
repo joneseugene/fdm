@@ -116,7 +116,7 @@ export function SectionEditor({
     <Form {...form}>
       <form
         noValidate
-        className="grid gap-6"
+        className="grid grid-cols-1 gap-6"
         // Enter in a field saves a draft — never publishes by accident.
         onSubmit={run(saveDraft.run)}
       >
@@ -124,9 +124,13 @@ export function SectionEditor({
 
         <Fields />
 
-        <div className="sticky bottom-0 z-20 -mx-4 -mb-4 border-t bg-background/95 backdrop-blur sm:-mx-6 sm:-mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-1">
+        <div className="sticky bottom-0 z-20 -mx-4 -mb-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:-mx-6 sm:-mb-6">
+          {/* Phones: status line, then full-width buttons. Wider: one row. */}
+          <p className="px-4 pt-2 text-xs text-muted-foreground md:hidden" aria-live="polite">
+            {status}
+          </p>
+          <div className="flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3">
+            <div className="flex shrink-0 items-center gap-1">
               {canPublish && isCustomised && (
                 <Confirm
                   trigger={
@@ -155,25 +159,55 @@ export function SectionEditor({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
               <span className="hidden text-sm text-muted-foreground md:inline" aria-live="polite">
                 {status}
               </span>
               {isDirty && (
-                <Button type="button" variant="ghost" onClick={() => form.reset()} disabled={busy}>
-                  Undo changes
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 sm:w-auto sm:px-4"
+                  onClick={() => form.reset()}
+                  disabled={busy}
+                  aria-label="Undo changes"
+                  title="Undo changes"
+                >
+                  <Undo2 /> <span className="hidden sm:inline">Undo changes</span>
                 </Button>
               )}
-              <Button type="submit" variant="outline" loading={saveDraft.pending} disabled={!isDirty || busy}>
+              <Button
+                type="submit"
+                variant="outline"
+                className="min-w-0 flex-1 sm:flex-none"
+                loading={saveDraft.pending}
+                disabled={!isDirty || busy}
+              >
                 <Save /> {saveDraft.pending ? "Saving…" : "Save draft"}
               </Button>
               {canPublish ? (
-                <Button type="button" onClick={run(publish.run)} loading={publish.pending} disabled={!hasWork || busy}>
+                <Button
+                  type="button"
+                  className="min-w-0 flex-1 sm:flex-none"
+                  onClick={run(publish.run)}
+                  loading={publish.pending}
+                  disabled={!hasWork || busy}
+                >
                   <Upload /> {publish.pending ? "Publishing…" : "Publish"}
                 </Button>
               ) : (
-                <Button type="button" onClick={run(submit.run)} loading={submit.pending} disabled={(!isDirty && (!draft || inReview)) || busy}>
-                  <Send /> {submit.pending ? "Sending…" : inReview && !isDirty ? "Sent for review" : "Send for review"}
+                <Button
+                  type="button"
+                  className="min-w-0 flex-1 sm:flex-none"
+                  onClick={run(submit.run)}
+                  loading={submit.pending}
+                  disabled={(!isDirty && (!draft || inReview)) || busy}
+                >
+                  <Send />{" "}
+                  <span className="truncate">
+                    {submit.pending ? "Sending…" : inReview && !isDirty ? "Sent for review" : "Send for review"}
+                  </span>
                 </Button>
               )}
             </div>

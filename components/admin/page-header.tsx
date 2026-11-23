@@ -21,20 +21,20 @@ export function PageHeader({
       {back && (
         <Link
           href={back.href}
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="-my-1 inline-flex w-fit items-center gap-1.5 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden /> Back to {back.label}
         </Link>
       )}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
         <div className="flex min-w-0 items-start gap-3">
           {Icon && (
-            <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-foreground">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-foreground sm:size-10">
               <Icon className="size-5" aria-hidden />
             </span>
           )}
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
             {description && <p className="text-sm text-muted-foreground">{description}</p>}
           </div>
         </div>

@@ -10,11 +10,12 @@ import { ImageField, ListField, SelectField, SwitchField, TextField } from "./fi
 function Group({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
     <Card>
-      <CardHeader className="pb-4">
+      {/* Tighter padding on phones leaves more room for the fields. */}
+      <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-4">
         <CardTitle className="text-base">{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent className="grid gap-4">{children}</CardContent>
+      <CardContent className="grid grid-cols-1 gap-4 p-4 pt-0 sm:p-6 sm:pt-0">{children}</CardContent>
     </Card>
   );
 }

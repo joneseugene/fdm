@@ -112,7 +112,7 @@ export function DataView<T>({
 
   if (rows.length === 0 && empty) {
     return (
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <Toolbar>
           <span className="text-sm text-muted-foreground">0 {noun[1]}</span>
           <div className="ml-auto flex items-center gap-2">
@@ -126,7 +126,7 @@ export function DataView<T>({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       {/* Search, filters and actions */}
       <Toolbar>
         {searchText && (
@@ -164,7 +164,7 @@ export function DataView<T>({
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-auto min-w-36" aria-label={`Filter by ${f.label}`}>
+            <SelectTrigger className="min-w-0 flex-1 basis-36 sm:w-auto sm:flex-none" aria-label={`Filter by ${f.label}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -223,7 +223,7 @@ export function DataView<T>({
           </Button>
         </Card>
       ) : (
-        <div className={cn("grid gap-3 transition-opacity", refreshing && "opacity-60")}>
+        <div className={cn("grid grid-cols-1 gap-3 transition-opacity", refreshing && "opacity-60")}>
           {/* Wide screens: table */}
           <Card className="hidden overflow-hidden p-0 md:block">
             <Table>
@@ -267,7 +267,7 @@ export function DataView<T>({
           </Card>
 
           {/* Phones: cards */}
-          <ul className="grid gap-3 md:hidden">
+          <ul className="grid grid-cols-1 gap-3 md:hidden">
             {visible.map((row, i) => (
               <li key={rowKey(row)}>
                 <Card

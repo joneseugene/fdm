@@ -176,7 +176,7 @@ export function UsersView({ users, loadedAt }: { users: AdminUser[]; loadedAt: s
         }
         actions={(u) => <UserActions user={u} onEdit={() => setEditing(u)} onRemove={() => setRemoving(u)} />}
         card={(u) => (
-          <div className="grid gap-2">
+          <div className="grid min-w-0 grid-cols-1 gap-2">
             <div className="flex items-center gap-3">
               <Avatar user={u} />
               <div className="min-w-0">
